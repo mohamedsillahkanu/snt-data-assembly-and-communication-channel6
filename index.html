@@ -835,7 +835,7 @@ function setScriptUrl(){} // no-op — URL is hardcoded
 // Save all items to Google Drive (called after every change)
 async function saveToStorage(){
   try{
-    requireUrl();
+    
     const all=sections.flatMap(s=>s.items||[]);
     await fetch(getScriptUrl(),{
       method:'POST',
@@ -915,7 +915,7 @@ async function fetchUsers(){
 
 // Write full users array to Sheets — always
 async function pushUsers(users){
-  requireUrl();
+  
   const resp=await fetch(getScriptUrl(),{
     method:'POST',
     headers:{'Content-Type':'application/json'},
@@ -927,7 +927,7 @@ async function pushUsers(users){
 
 // Signup: fetch fresh → check duplicate → push back
 async function remoteAddUser(newUser){
-  requireUrl();
+  
   const users=await fetchUsers();
   if(users.find(u=>u.username.toLowerCase()===newUser.username.toLowerCase()))
     throw new Error('Email already registered');
