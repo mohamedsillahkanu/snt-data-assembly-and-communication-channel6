@@ -552,7 +552,7 @@
         <span class="chat-badge" id="chatBadge">0</span>
       </div>
 
-      <button class="btn btn-info" onclick="manualSync()"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> Sync</button>
+      <button class="btn btn-info" onclick="X()"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> Sync</button>
       <button class="btn btn-gold" id="addBtn" onclick="openAddModal()"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add</button>
       <button class="btn btn-purple" id="usersBtn" onclick="openUsersModal()" style="display:none;"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> Users</button>
       <button class="btn btn-config" id="configBtn" onclick="openConfigModal()" style="display:none;"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg> Config</button>
@@ -568,7 +568,7 @@
     </div>
     <div class="section-header">
       <div class="section-icon" id="sectionIcon"></div>
-      <div><div class="section-title" id="sectionTitle">All Items</div><div class="section-subtitle" id="sectionSubtitle">Loading...</div></div>
+      <div><div class="section-title" id="sectionTitle">All Items</div><div class="section-subtitle" id="sectionSubtitle">Loading from ICF-SL / NMCP Server...</div></div>
     </div>
     <div id="mainFolderArea" style="display:none;"></div>
     <div class="items-grid" id="itemsGrid"></div>
@@ -820,7 +820,7 @@
 </div>
 
 <!-- ===== LOADING + NOTIFICATION ===== -->
-<div class="loading-overlay" id="loadingOverlay"><div class="loading-spinner"></div><div class="loading-text" id="loadingText">Loading...</div></div>
+<div class="loading-overlay" id="loadingOverlay"><div class="loading-spinner"></div><div class="loading-text" id="loadingText">Loading from ICF-SL / NMCP Server...</div></div>
 <div class="notification" id="notification"></div>
 
 <!-- ===== CHAT OVERLAY + PANEL ===== -->
@@ -972,7 +972,7 @@ async function saveToStorage(){
 async function loadFromGoogleDrive(){
   const url=getScriptUrl();if(!url){hideLoading();return false;}
   try{
-    showLoading('Loading from Google Drive…');
+    showLoading('Loading from ICF-SL / NMCP Server...');
     const resp=await fetch(url+'?action=getData');
     const result=await resp.json();
     if(result.success&&result.data?.data){
@@ -984,7 +984,7 @@ async function loadFromGoogleDrive(){
     hideLoading();return false;
   }catch(e){hideLoading();return false;}
 }
-async function manualSync(){
+async function X(){
   const loaded=await loadFromGoogleDrive();
   if(loaded){renderTabs();loadSection(currentSectionIndex,true);showNotification('Synced from Google Drive!','success');}
   else showNotification('Sync failed — check script deployment','error');
@@ -1016,7 +1016,7 @@ async function remoteAddUser(newUser){
 }
 
 async function seedDefaultUsers(){
-  showLoading('Seeding admin to Sheets…');
+  showLoading('Connecting to ICF-SL / NMCP Server...');
   await postToScript({action:'setUsers',users:DEFAULT_USERS});
   await new Promise(r=>setTimeout(r,1500));
   hideLoading();renderUsersTable();
@@ -1457,7 +1457,7 @@ function saveItem(){
   let fileUrl=document.getElementById('itemFileUrl').value.trim();let fileType=document.getElementById('itemFileType').value;let fileName=editingItem?.fileName||null;
   if(selectedFile&&selectedFileData){fileUrl=selectedFileData;fileName=selectedFile.name;fileType=fileType||detectFileType(selectedFile.name);}
   else{const extUrl=document.getElementById('externalLinkUrl').value.trim();const extName=document.getElementById('externalLinkName').value.trim();if(extUrl){fileUrl=extUrl;fileName=extName||getLinkDisplayName(extUrl);fileType=fileType||detectFileType(extUrl);}}
-  showLoading('Saving...');
+  showLoading('Saving to ICF-SL / NMCP Server...');
   const section=sections.find(s=>s.id===sectionId);
   const subsectionId=!isFlat(sectionId)?selectedSubsection?.id:null;const subsectionName=!isFlat(sectionId)?selectedSubsection?.name:null;
   const subfolderType=!isFlat(sectionId)?document.getElementById('selectedFolderType').value:null;
@@ -1568,7 +1568,7 @@ function closeCompleteModal(){document.getElementById('completeModal').classList
 function confirmComplete(){
   if(!itemToComplete)return;const notes=document.getElementById('completionNotes').value.trim();
   if(!notes){showNotification('Enter completion notes','error');return;}
-  showLoading('Completing...');
+  showLoading('Saving to ICF-SL / NMCP Server...');
   sections.forEach(s=>{if(s.items){const item=s.items.find(i=>i.id===itemToComplete.id);if(item){item.status='completed';item.completionNotes=notes;item.completionDate=document.getElementById('completionDate').value;item.completedBy=currentUser;const ev=document.getElementById('completionFileUrl').value.trim();if(ev)item.evidenceUrl=ev;}}});
   saveToStorage();
   sendNotificationToAll('taskCompleted',{taskTitle:itemToComplete.title,completedBy:currentUser,completionNotes:notes.slice(0,200),completionDate:document.getElementById('completionDate').value});
