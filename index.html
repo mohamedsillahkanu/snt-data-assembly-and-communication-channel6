@@ -1199,7 +1199,7 @@ function saveTask(){
     const ns=sections.find(s=>s.id==='nextstep');
     if(!ns.items) ns.items=[];
     ns.items.push({id:'task-'+Date.now(),title,section:'nextstep',organisation:org,date,dueDate,status,assignee,assigneeEmail,description,comments:[],createdBy:currentUser,createdAt:new Date().toISOString()});
-    sendNotificationToAll('taskAssigned',{taskTitle:title,assignee:assignee||'Unassigned',dueDate:dueDate||'',assignedBy:currentUser,description:stripHtml(description).slice(0,300),organisation:org});
+    sendNotificationToAll('taskAssigned',{taskTitle:title,assignee:assignee||'Unassigned',dueDate:dueDate||'',assignedBy:currentUser,description:description,organisation:org});
   }
 
   saveToStorage();
@@ -1282,6 +1282,24 @@ function isFlat(sectionId){const s=sections.find(x=>x.id===sectionId);return !!(
 
 // ==================== STATE ====================
 let currentUser=null,userRole='user',currentSectionIndex=0;
+let _userCache=null; // cache users for session — avoids repeated GAS calls
+
+async function fetchUsers(){
+  if(_userCache) return _userCache; // instant if already loaded
+  try{
+    const resp=await fetch(getScriptUrl()+'?action=getUsers');
+    const result=await resp.json();
+    if(result.success&&Array.isArray(result.users)&&result.users.length>0){
+      const merged=[...result.users];
+      DEFAULT_USERS.forEach(d=>{
+        if(!merged.find(u=>u.username.toLowerCase()===d.username.toLowerCase()))merged.push(d);
+      });
+      _userCache=merged;
+      return merged;
+    }
+    return DEFAULT_USERS;
+  }catch(e){return DEFAULT_USERS;}
+}
 let currentItems=[],itemToDelete=null,itemToComplete=null;
 let previewItem=null,editingItem=null,replyingTo=null;
 let selectedSection=null,selectedSubsection=null,selectedFolderType=null;
@@ -1327,22 +1345,6 @@ function getLocalUsers(){return DEFAULT_USERS;}
 function loadFromStorage(){}
 function getUsersScriptUrl(){return getScriptUrl();}
 function setUsersScriptUrl(){}
-
-async function fetchUsers(){
-  try{
-    const resp=await fetch(getScriptUrl()+'?action=getUsers');
-    const result=await resp.json();
-    if(result.success&&Array.isArray(result.users)&&result.users.length>0){
-      // Always include admin fallback
-      const users=[...result.users];
-      DEFAULT_USERS.forEach(d=>{
-        if(!users.find(u=>u.username&&u.username.toLowerCase()===d.username.toLowerCase()))users.push(d);
-      });
-      return users;
-    }
-    return DEFAULT_USERS;
-  }catch(e){return DEFAULT_USERS;}
-}
 
 async function postToScript(payload){
   try{await fetch(getScriptUrl(),{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify(payload)});}catch(e){}
@@ -1481,6 +1483,7 @@ function showApp(){
   document.getElementById('userBadge').className='user-badge '+userRole;
   if(userRole==='admin'){document.getElementById('configBtn').style.display='flex';document.getElementById('usersBtn').style.display='flex';}
   loadFromGoogleDrive().finally(()=>{renderTabs();loadSection(0);});
+  fetchUsers(); // pre-warm user cache so dropdowns open instantly
   startChatPoll(30000);
 }
 
@@ -2161,7 +2164,7 @@ function saveItem(){
   if(section?.items)section.items.push(itemData);else if(section){section.items=[itemData];}
   saveToStorage();
   const isNew=!editingItem;
-  if(isNew)sendNotificationToAll(sectionId==='nextstep'?'taskAssigned':'newItem',{itemTitle:title,section:section?.name||sectionId,addedBy:currentUser,description:stripHtml(itemData.description)});
+  if(isNew)sendNotificationToAll(sectionId==='nextstep'?'taskAssigned':'newItem',{itemTitle:title,section:section?.name||sectionId,addedBy:currentUser,description:itemData.description||''});
   const wasInFolder=mainFolderLevel===1&&mainSelectedSubsection;const savedSub=mainSelectedSubsection?{...mainSelectedSubsection}:null;const savedTab=mainActiveTab;
   setTimeout(()=>{
     hideLoading();closeAddModal();renderTabs();
@@ -2419,7 +2422,7 @@ function viewTaskEvidence(id){
 function sendTaskEmail(id){
   const item=findItemById(id);if(!item||!item.assigneeEmail)return;
   showLoading('Sending task notification...');
-  postToScript({action:'taskAssigned',taskTitle:item.title,assignee:item.assignee,assigneeEmail:item.assigneeEmail,dueDate:item.dueDate,assignedBy:currentUser,description:stripHtml(item.description||'').slice(0,500),organisation:item.organisation||''});
+  postToScript({action:'taskAssigned',taskTitle:item.title,assignee:item.assignee,assigneeEmail:item.assigneeEmail,dueDate:item.dueDate,assignedBy:currentUser,description:item.description||'',organisation:item.organisation||''});
   setTimeout(()=>{hideLoading();showNotification(`Task sent to ${item.assignee}!`,'success');},800);
 }
 function closeCompleteModal(){
