@@ -1046,8 +1046,159 @@
     </div>
   </div>
 </div>
+<!-- ===== TASK MODAL ===== -->
+<div class="modal-overlay" id="taskModal">
+  <div class="modal" style="max-width:620px;">
+    <div class="modal-header" style="background:var(--primary);">
+      <h2 id="taskModalTitle">Add Task</h2>
+      <button class="modal-close" onclick="closeTaskModal()">✕</button>
+    </div>
+    <div class="modal-body" style="padding:22px 24px;">
+
+      <div class="form-group">
+        <label>Task Title *</label>
+        <input type="text" id="tmTitle" placeholder="e.g. Setup infrastructure for the platform">
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Organisation</label>
+          <input type="text" id="tmOrg" placeholder="e.g. DPPI, NMCP, CHAI, WHO">
+        </div>
+        <div class="form-group">
+          <label>Status</label>
+          <select id="tmStatus">
+            <option value="pending">Pending</option>
+            <option value="in-progress">In Progress</option>
+            <option value="completed">Completed</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Due Date</label>
+          <input type="date" id="tmDueDate">
+        </div>
+        <div class="form-group">
+          <label>Created Date</label>
+          <input type="date" id="tmDate">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Assign To</label>
+        <select id="tmAssigneeSelect" onchange="onTmAssigneeSelect(this.value)" style="width:100%;padding:10px 12px;border:2px solid var(--gray-200);border-radius:6px;font-family:inherit;font-size:.9rem;background:#fff;">
+          <option value="">-- Select person --</option>
+        </select>
+        <p class="form-hint" id="tmAssigneeHint" style="display:none;"></p>
+        <input type="hidden" id="tmAssignee">
+        <input type="hidden" id="tmAssigneeEmail">
+      </div>
+
+      <div class="form-group">
+        <label>Description / Notes</label>
+        <div class="rich-editor-wrap">
+          <div class="rich-editor-toolbar">
+            <button type="button" onclick="document.execCommand('bold')"><strong>B</strong></button>
+            <button type="button" onclick="document.execCommand('italic')"><em>I</em></button>
+            <button type="button" onclick="document.execCommand('underline')"><u>U</u></button>
+            <span class="sep"></span>
+            <button type="button" onclick="document.execCommand('insertUnorderedList')">• List</button>
+            <button type="button" onclick="document.execCommand('insertOrderedList')">1. List</button>
+            <span class="sep"></span>
+            <button type="button" onclick="document.execCommand('removeFormat')" style="color:var(--danger);">✕ Clear</button>
+          </div>
+          <div class="rich-editor-content" id="tmDescription" contenteditable="true" placeholder="Describe the task, objectives, deliverables..." style="min-height:100px;"></div>
+        </div>
+      </div>
+
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeTaskModal()" style="color:#333;border-color:#ccc;">Cancel</button>
+      <button class="btn btn-gold" onclick="saveTask()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        Save Task
+      </button>
+    </div>
+  </div>
+</div>
+
 <script>
-// ==================== ICONS ====================
+// ===== TASK MODAL =====
+let editingTaskItem = null;
+
+async function openTaskModal(item){
+  editingTaskItem = item || null;
+  document.getElementById('taskModalTitle').textContent = item ? 'Edit Task' : 'Add Task';
+  document.getElementById('tmTitle').value       = item ? (item.title||'')            : '';
+  document.getElementById('tmOrg').value         = item ? (item.organisation||'')     : '';
+  document.getElementById('tmStatus').value      = item ? (item.status||'pending')    : 'pending';
+  document.getElementById('tmDueDate').value     = item ? (item.dueDate||'')          : '';
+  document.getElementById('tmDate').value        = item ? (item.date||new Date().toISOString().split('T')[0]) : new Date().toISOString().split('T')[0];
+  document.getElementById('tmAssignee').value    = item ? (item.assignee||'')         : '';
+  document.getElementById('tmAssigneeEmail').value = item ? (item.assigneeEmail||'')  : '';
+  document.getElementById('tmDescription').innerHTML = item ? (item.description||'') : '';
+  document.getElementById('tmAssigneeHint').style.display='none';
+  // Populate assignee dropdown
+  const sel = document.getElementById('tmAssigneeSelect');
+  sel.innerHTML = '<option value="">-- Select person --</option>';
+  try{
+    const users = await fetchUsers();
+    users.forEach(u=>{
+      const name=u.name||u.username, email=u.username;
+      const opt=document.createElement('option');
+      opt.value=JSON.stringify({name,email});
+      opt.textContent=`${name} (${email})`;
+      if(item && item.assignee===name) opt.selected=true;
+      sel.appendChild(opt);
+    });
+  }catch(e){}
+  document.getElementById('taskModal').classList.add('active');
+  setTimeout(()=>document.getElementById('tmTitle').focus(), 100);
+}
+
+function onTmAssigneeSelect(val){
+  const hint=document.getElementById('tmAssigneeHint');
+  if(!val){document.getElementById('tmAssignee').value='';document.getElementById('tmAssigneeEmail').value='';hint.style.display='none';return;}
+  try{const d=JSON.parse(val);document.getElementById('tmAssignee').value=d.name||'';document.getElementById('tmAssigneeEmail').value=d.email||'';hint.textContent='Email: '+d.email;hint.style.display='block';}catch(e){}
+}
+
+function closeTaskModal(){
+  document.getElementById('taskModal').classList.remove('active');
+  editingTaskItem=null;
+}
+
+function saveTask(){
+  const title=document.getElementById('tmTitle').value.trim();
+  if(!title){showNotification('Task title is required','error');document.getElementById('tmTitle').focus();return;}
+  const date   = document.getElementById('tmDate').value    || new Date().toISOString().split('T')[0];
+  const dueDate= document.getElementById('tmDueDate').value || null;
+  const status = document.getElementById('tmStatus').value  || 'pending';
+  const org    = document.getElementById('tmOrg').value.trim();
+  const assignee     = document.getElementById('tmAssignee').value.trim();
+  const assigneeEmail= document.getElementById('tmAssigneeEmail').value.trim();
+  const description  = document.getElementById('tmDescription').innerHTML;
+
+  showLoading('Saving to ICF-SL / NMCP Server...');
+
+  if(editingTaskItem){
+    // Update existing
+    sections.forEach(s=>{if(s.items){const i=s.items.find(x=>x.id===editingTaskItem.id);if(i){i.title=title;i.organisation=org;i.status=status;i.dueDate=dueDate;i.date=date;i.assignee=assignee;i.assigneeEmail=assigneeEmail;i.description=description;}}});
+  } else {
+    // New task
+    const ns=sections.find(s=>s.id==='nextstep');
+    if(!ns.items) ns.items=[];
+    ns.items.push({id:'task-'+Date.now(),title,section:'nextstep',organisation:org,date,dueDate,status,assignee,assigneeEmail,description,comments:[],createdBy:currentUser,createdAt:new Date().toISOString()});
+    sendNotificationToAll('taskAssigned',{taskTitle:title,assignee:assignee||'Unassigned',dueDate:dueDate||'',assignedBy:currentUser,description:stripHtml(description).slice(0,300),organisation:org});
+  }
+
+  saveToStorage();
+  setTimeout(()=>{hideLoading();closeTaskModal();renderTabs();loadSection(currentSectionIndex);showNotification(editingTaskItem?'Task updated!':'Task added!','success');},350);
+}
+</script>
+
+
 const icons = {
   folder:`<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`,
   chart:`<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg>`,
@@ -1889,6 +2040,8 @@ function extractGoogleDriveId(url){if(!url)return null;const m=url.match(/\/d\/(
 
 // ==================== ADD / EDIT MODAL ====================
 function openAddModal(){
+  // Dedicated task modal for Assign Tasks section
+  if(sections[currentSectionIndex]?.id==='nextstep'){openTaskModal(null);return;}
   editingItem=null;document.getElementById('modalTitle').textContent='Add New Item';
   document.getElementById('itemTitle').value='';
   const cs=sections[currentSectionIndex];
@@ -1904,7 +2057,10 @@ function openAddModal(){
   onSectionChange();document.getElementById('addModal').classList.add('active');
 }
 function openEditModalForItem(item){
-  if(item.section==='nextstep'&&userRole==='user'){showNotification('Only Supervisors can edit Next Steps','error');return;}
+  if(item.section==='nextstep'){
+    if(userRole==='user'){showNotification('Only Supervisors can edit tasks','error');return;}
+    openTaskModal(item);return;
+  }
   editingItem=item;document.getElementById('modalTitle').textContent='Edit Item';
   document.getElementById('itemTitle').value=item.title||'';document.getElementById('itemMainSection').value=item.section;
   document.getElementById('itemDate').value=item.date||'';document.getElementById('itemDueDate').value=item.dueDate||'';
